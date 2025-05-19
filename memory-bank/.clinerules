@@ -1,0 +1,65 @@
+# Cline Rules: Home Assistant Dashboard Backup
+
+## Project Patterns
+
+### Naming Conventions
+- Component name: `dashboard_backup`
+- Service names: `dashboard_backup.create_backup`, `dashboard_backup.restore_backup`
+- File naming: Use timestamps for backup files (e.g., `dashboard_20250519_144530.yaml`)
+- Directory structure follows Home Assistant custom component conventions
+
+### Code Style
+- Follow Home Assistant's Python style guidelines
+- Use async/await for all I/O operations
+- Include type hints for all function parameters and return values
+- Document all functions and classes with docstrings
+
+### Development Workflow
+- Document changes in Memory Bank before implementation
+- Update progress.md after completing each phase
+- Test thoroughly before moving to the next phase
+- Keep code modular and focused on single responsibilities
+
+## Project Intelligence
+
+### Home Assistant Integration
+- Custom components live in `custom_components/` directory
+- Components must register with Home Assistant during setup
+- Services are registered during component initialization
+- UI elements are added through Lovelace resources and cards
+
+### Dashboard Configuration
+- Lovelace dashboards can be configured via YAML or UI
+- Dashboard configurations are stored in `.storage/lovelace*` files
+- Accessing dashboard configurations requires understanding Home Assistant's internal APIs
+- Changes to dashboards may require reloading the Lovelace configuration
+
+### User Preferences
+- Focus on simplicity and ease of use
+- Minimize configuration requirements
+- Provide clear feedback for all operations
+- Ensure compatibility with different Home Assistant setups
+
+## Known Challenges
+
+### Technical Challenges
+- Accessing and modifying Lovelace configurations may require undocumented APIs
+- Dashboard restoration might require special handling to apply changes
+- Different Home Assistant installation methods may have different file paths
+
+### User Experience Challenges
+- Users may expect multiple backup support
+- Clear error messages are essential for troubleshooting
+- Users may want more control over backup location and naming
+
+## Learning Resources
+- Home Assistant Developer Documentation: https://developers.home-assistant.io/
+- Custom Component Examples: https://github.com/home-assistant/example-custom-config/tree/master/custom_components/example_sensor
+- Lovelace Documentation: https://www.home-assistant.io/lovelace/
+- HACS Documentation: https://hacs.xyz/docs/developer/start
+
+## Project Evolution
+- Start with basic backup/restore functionality
+- Consider adding multiple backup support in future versions
+- Explore integration with Home Assistant's backup system
+- Consider adding a custom card for backup management

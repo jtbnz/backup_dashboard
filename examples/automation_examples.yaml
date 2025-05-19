@@ -1,0 +1,83 @@
+# Example automations for using Dashboard Backup services
+
+# Example 1: Automatically back up a dashboard every day at midnight
+- alias: "Daily Dashboard Backup"
+  description: "Creates a backup of the main dashboard every day at midnight"
+  trigger:
+    - platform: time
+      at: "00:00:00"
+  action:
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: lovelace
+
+# Example 2: Back up a dashboard when a specific button is pressed
+- alias: "Backup Dashboard on Button Press"
+  description: "Creates a backup when a specific button entity is pressed"
+  trigger:
+    - platform: state
+      entity_id: input_button.backup_dashboard
+      to: "pressed"
+  action:
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: lovelace
+    - service: persistent_notification.create
+      data:
+        title: "Dashboard Backup"
+        message: "Dashboard backup created successfully"
+
+# Example 3: Restore a dashboard when a specific button is pressed
+- alias: "Restore Dashboard on Button Press"
+  description: "Restores the most recent backup when a specific button entity is pressed"
+  trigger:
+    - platform: state
+      entity_id: input_button.restore_dashboard
+      to: "pressed"
+  action:
+    - service: dashboard_backup.restore_backup
+      data:
+        dashboard_id: lovelace
+    - service: persistent_notification.create
+      data:
+        title: "Dashboard Backup"
+        message: "Dashboard restored successfully"
+
+# Example 4: Back up multiple dashboards in sequence
+- alias: "Backup All Dashboards"
+  description: "Creates backups of multiple dashboards in sequence"
+  trigger:
+    - platform: state
+      entity_id: input_button.backup_all_dashboards
+      to: "pressed"
+  action:
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: lovelace
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: kitchen
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: bedroom
+    - service: persistent_notification.create
+      data:
+        title: "Dashboard Backup"
+        message: "All dashboards backed up successfully"
+
+# Example 5: Back up a dashboard before making changes with a script
+- alias: "Safe Dashboard Edit"
+  description: "Backs up a dashboard before making changes to it"
+  trigger:
+    - platform: state
+      entity_id: input_button.edit_dashboard
+      to: "pressed"
+  action:
+    - service: dashboard_backup.create_backup
+      data:
+        dashboard_id: lovelace
+    - service: persistent_notification.create
+      data:
+        title: "Dashboard Backup"
+        message: "Dashboard backed up. You can now safely make changes."
+    # Additional actions to make changes to the dashboard would go here

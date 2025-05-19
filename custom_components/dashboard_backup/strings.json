@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dashboard Backup Configuration",
+        "description": "Set up the Dashboard Backup integration",
+        "data": {
+          "backup_path": "Backup directory (relative to Home Assistant config directory)"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "Dashboard Backup is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Dashboard Backup Options",
+        "description": "Configure Dashboard Backup settings",
+        "data": {
+          "backup_path": "Backup directory (relative to Home Assistant config directory)"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occurred"
+    }
+  },
+  "title": "Dashboard Backup",
+  "entity": {
+    "sensor": {
+      "last_backup": {
+        "name": "Last Backup",
+        "state": {
+          "unknown": "Unknown"
+        }
+      }
+    }
+  }
+}

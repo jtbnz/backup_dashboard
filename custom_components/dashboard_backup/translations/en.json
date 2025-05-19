@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dashboard Backup Configuration",
+        "description": "Set up the Dashboard Backup integration",
+        "data": {
+          "backup_path": "Backup directory (relative to Home Assistant config directory)"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "Dashboard Backup is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Dashboard Backup Options",
+        "description": "Configure Dashboard Backup settings",
+        "data": {
+          "backup_path": "Backup directory (relative to Home Assistant config directory)"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occurred"
+    }
+  },
+  "services": {
+    "create_backup": {
+      "name": "Create Dashboard Backup",
+      "description": "Creates a backup of the specified dashboard or the current dashboard if none is specified.",
+      "fields": {
+        "dashboard_id": {
+          "name": "Dashboard ID",
+          "description": "The ID of the dashboard to back up. If not specified, the current dashboard will be used."
+        }
+      }
+    },
+    "restore_backup": {
+      "name": "Restore Dashboard Backup",
+      "description": "Restores a dashboard from a backup file.",
+      "fields": {
+        "dashboard_id": {
+          "name": "Dashboard ID",
+          "description": "The ID of the dashboard to restore. If not specified, the current dashboard will be used."
+        },
+        "backup_file": {
+          "name": "Backup File",
+          "description": "The filename of the backup to restore. If not specified, the most recent backup will be used."
+        }
+      }
+    }
+  },
+  "title": "Dashboard Backup",
+  "entity": {
+    "sensor": {
+      "last_backup": {
+        "name": "Last Backup",
+        "state": {
+          "unknown": "Unknown"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Example configuration for adding the Dashboard Backup card to your dashboard
+
+# First, create a directory for the examples
+# mkdir -p examples
+
+# This is an example of how to add the Dashboard Backup card to your dashboard
+# You can copy this configuration into your dashboard's YAML editor
+
+type: 'custom:dashboard-backup-card'
+title: 'Dashboard Backup'
+description: 'Backup and restore your dashboard configuration'
+dashboard_id: 'lovelace'
+
+# You can also customize the card further:
+# 
+# Example with custom title and description:
+# type: 'custom:dashboard-backup-card'
+# title: 'My Custom Dashboard Backup'
+# description: 'Save and restore this dashboard layout'
+# dashboard_id: 'lovelace'
+# 
+# Example for a specific dashboard:
+# type: 'custom:dashboard-backup-card'
+# title: 'Kitchen Dashboard Backup'
+# description: 'Backup and restore the kitchen dashboard'
+# dashboard_id: 'kitchen'

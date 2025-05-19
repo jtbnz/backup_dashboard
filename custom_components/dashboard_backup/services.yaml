@@ -1,0 +1,30 @@
+create_backup:
+  name: Create Dashboard Backup
+  description: Creates a backup of the specified dashboard or the current dashboard if none is specified.
+  fields:
+    dashboard_id:
+      name: Dashboard ID
+      description: The ID of the dashboard to back up. If not specified, the current dashboard will be used.
+      example: "lovelace"
+      required: false
+      selector:
+        text:
+
+restore_backup:
+  name: Restore Dashboard Backup
+  description: Restores a dashboard from a backup file.
+  fields:
+    dashboard_id:
+      name: Dashboard ID
+      description: The ID of the dashboard to restore. If not specified, the current dashboard will be used.
+      example: "lovelace"
+      required: false
+      selector:
+        text:
+    backup_file:
+      name: Backup File
+      description: The filename of the backup to restore. If not specified, the most recent backup will be used.
+      example: "dashboard_20250519_144530.yaml"
+      required: false
+      selector:
+        text:

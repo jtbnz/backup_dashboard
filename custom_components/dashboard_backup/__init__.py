@@ -14,7 +14,14 @@ from homeassistant.helpers.typing import ConfigType
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import slugify
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.components.frontend import async_get_frontend_data
+# Try to import frontend functions, with fallbacks for different HA versions
+try:
+    from homeassistant.components.frontend import async_get_frontend_data
+except ImportError:
+    # Function doesn't exist in this version of HA
+    async def async_get_frontend_data(hass):
+        """Fallback implementation when async_get_frontend_data is not available."""
+        return None
 from homeassistant.components.lovelace import dashboard
 
 from .const import (
@@ -284,11 +291,24 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
                 return storage_data.get("data", {})
         
         # If that fails, try to get it from the frontend data
-        frontend_data = await async_get_frontend_data(hass)
-        if frontend_data and "dashboards" in frontend_data:
-            for dash_id, dash_data in frontend_data["dashboards"].items():
-                if dash_id == dashboard_id:
-                    return dash_data
+        try:
+            frontend_data = await async_get_frontend_data(hass)
+            if frontend_data and "dashboards" in frontend_data:
+                for dash_id, dash_data in frontend_data["dashboards"].items():
+                    if dash_id == dashboard_id:
+                        return dash_data
+        except Exception as ex:
+            _LOGGER.debug("Could not get frontend data: %s", str(ex))
+            
+        # Try to get it from the configuration.yaml file
+        try:
+            config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
+            if os.path.exists(config_file):
+                with open(config_file, "r") as f:
+                    config_data = yaml.safe_load(f)
+                    return config_data
+        except Exception as ex:
+            _LOGGER.debug("Could not get configuration from YAML file: %s", str(ex))
         
         # If all else fails, return None
         return None
@@ -304,9 +324,12 @@ async def restore_dashboard_config(
     """Restore a dashboard configuration."""
     try:
         # Try to update the dashboard configuration through the lovelace component
-        if hasattr(hass.data, "lovelace") and dashboard_id in hass.data["lovelace"]:
-            await hass.data["lovelace"][dashboard_id].async_save_config(config)
-            return
+        try:
+            if hasattr(hass.data, "lovelace") and dashboard_id in hass.data["lovelace"]:
+                await hass.data["lovelace"][dashboard_id].async_save_config(config)
+                return
+        except Exception as ex:
+            _LOGGER.debug("Could not save config through lovelace component: %s", str(ex))
         
         # If that fails, try to update it in the .storage directory
         storage_file = f".storage/lovelace.{dashboard_id}"
@@ -316,17 +339,38 @@ async def restore_dashboard_config(
         storage_path = os.path.join(hass.config.config_dir, storage_file)
         
         if os.path.exists(storage_path):
-            with open(storage_path, "r") as f:
-                storage_data = json.load(f)
-            
-            storage_data["data"] = config
-            
-            with open(storage_path, "w") as f:
-                json.dump(storage_data, f)
-            
-            # Reload the lovelace configuration
-            await hass.services.async_call("lovelace", "reload_resources")
-            return
+            try:
+                with open(storage_path, "r") as f:
+                    storage_data = json.load(f)
+                
+                storage_data["data"] = config
+                
+                with open(storage_path, "w") as f:
+                    json.dump(storage_data, f)
+                
+                # Try to reload the lovelace configuration
+                try:
+                    await hass.services.async_call("lovelace", "reload_resources")
+                except Exception as ex:
+                    _LOGGER.debug("Could not reload lovelace resources: %s", str(ex))
+                    # Try alternative reload method
+                    try:
+                        await hass.services.async_call("frontend", "reload_themes")
+                    except Exception:
+                        pass
+                return
+            except Exception as ex:
+                _LOGGER.debug("Could not update storage file: %s", str(ex))
+        
+        # If that fails, try to write to the YAML configuration file
+        try:
+            config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
+            if dashboard_id == "lovelace" and os.path.exists(config_file):
+                with open(config_file, "w") as f:
+                    yaml.dump(config, f, default_flow_style=False)
+                return
+        except Exception as ex:
+            _LOGGER.debug("Could not write to YAML configuration file: %s", str(ex))
         
         # If all else fails, raise an error
         raise HomeAssistantError(f"Could not restore dashboard {dashboard_id}")

@@ -24,3 +24,15 @@ dashboard_id: 'lovelace'
 # title: 'Kitchen Dashboard Backup'
 # description: 'Backup and restore the kitchen dashboard'
 # dashboard_id: 'kitchen'
+
+# Note: If the card doesn't appear in the list of available cards when adding a card to your dashboard,
+# you'll need to add it as a resource first:
+#
+# 1. Go to Configuration > Lovelace Dashboards > Resources
+# 2. Click the "+" button to add a new resource
+# 3. Enter the URL: `/custom_components/dashboard_backup/dashboard_card.js`
+# 4. Select Resource type: "JavaScript Module"
+# 5. Click "Create"
+# 6. Refresh your browser
+#
+# Alternatively, you can use the service `dashboard_backup.add_card_resource` to add the card as a resource.

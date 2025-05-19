@@ -95,6 +95,19 @@ Backup files are named using the format `dashboard_[dashboard_id]_[timestamp].ya
 
 ## Troubleshooting
 
+### Custom Card Not Appearing
+
+If the Dashboard Backup card doesn't appear in the list of available cards when adding a card to your dashboard:
+
+1. Go to Configuration > Lovelace Dashboards > Resources
+2. Click the "+" button to add a new resource
+3. Enter the URL: `/custom_components/dashboard_backup/dashboard_card.js`
+4. Select Resource type: "JavaScript Module"
+5. Click "Create"
+6. Refresh your browser
+
+Alternatively, you can use the service `dashboard_backup.add_card_resource` to add the card as a resource.
+
 ### Backup Failed
 
 If a backup fails, check the Home Assistant logs for more information. Common causes include:
@@ -110,6 +123,15 @@ If a restore fails, check the Home Assistant logs for more information. Common c
 - Backup file not found
 - Invalid YAML in the backup file
 - Dashboard configuration has changed significantly since the backup was created
+
+### Compatibility Issues
+
+If you encounter compatibility issues with your version of Home Assistant:
+
+- Make sure you're using Home Assistant 2021.12.0 or newer
+- Check the logs for specific error messages
+- Try manually adding the card as a resource as described above
+- If issues persist, please report them on GitHub
 
 ## License
 

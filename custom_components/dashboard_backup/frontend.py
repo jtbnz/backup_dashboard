@@ -4,6 +4,8 @@ import logging
 from typing import List
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.service import async_register_admin_service
+from homeassistant.components.lovelace.resources import ResourceStorageCollection
 
 from .const import DOMAIN
 
@@ -18,18 +20,22 @@ async def async_setup_frontend(hass: HomeAssistant) -> bool:
     root_path = f"/custom_components/{DOMAIN}/"
     card_url = f"{root_path}{CARD_FILENAME}"
 
-    # Try to add the card to the frontend
+    # Try multiple methods to register the card
+    success = False
+    
+    # Method 1: Try to add the card to the frontend using add_extra_js_url
     try:
-        # Try to import the function
         from homeassistant.components.frontend import add_extra_js_url
         
-        # Add the card to the frontend
         add_extra_js_url(hass, card_url)
         _LOGGER.info("Added dashboard card to frontend: %s", card_url)
+        success = True
     except ImportError:
-        # Function doesn't exist in this version of HA
+        _LOGGER.debug("Could not import add_extra_js_url")
+    
+    # Method 2: Try to register the card as a built-in panel
+    if not success:
         try:
-            # Try alternative method
             from homeassistant.components.frontend import async_register_built_in_panel
             
             await async_register_built_in_panel(
@@ -41,11 +47,85 @@ async def async_setup_frontend(hass: HomeAssistant) -> bool:
                 js_url=card_url,
             )
             _LOGGER.info("Registered dashboard card as built-in panel: %s", card_url)
+            success = True
         except ImportError:
-            # Neither method is available
-            _LOGGER.warning(
-                "Could not register dashboard card with frontend. "
-                "You may need to manually add it to your resources."
+            _LOGGER.debug("Could not import async_register_built_in_panel")
+    
+    # Method 3: Try to add the card as a Lovelace resource
+    if not success:
+        try:
+            # Try to add the card as a Lovelace resource
+            resource_url = f"{root_path}{CARD_FILENAME}"
+            
+            # Check if the resource already exists
+            if hasattr(hass.data, "lovelace") and "resources" in hass.data["lovelace"]:
+                resources = hass.data["lovelace"]["resources"]
+                if isinstance(resources, ResourceStorageCollection):
+                    # Check if the resource already exists
+                    for resource in resources.async_items():
+                        if resource["url"] == resource_url:
+                            _LOGGER.info("Resource already exists: %s", resource_url)
+                            success = True
+                            break
+                    
+                    # Add the resource if it doesn't exist
+                    if not success:
+                        try:
+                            await resources.async_create_item({
+                                "url": resource_url,
+                                "type": "module",
+                                "res_type": "module",
+                            })
+                            _LOGGER.info("Added card as Lovelace resource: %s", resource_url)
+                            success = True
+                        except Exception as ex:
+                            _LOGGER.debug("Could not add resource: %s", str(ex))
+        except Exception as ex:
+            _LOGGER.debug("Could not add card as Lovelace resource: %s", str(ex))
+    
+    # Method 4: Always register a service to manually add the card as a resource
+    async def add_card_resource(call):
+        """Add the dashboard card as a Lovelace resource."""
+        try:
+            await hass.services.async_call(
+                "lovelace", 
+                "resources", 
+                {
+                    "url": card_url,
+                    "type": "module",
+                    "res_type": "module",
+                }
             )
+            _LOGGER.info("Added card as Lovelace resource via service call: %s", card_url)
+        except Exception as ex:
+            _LOGGER.error("Could not add card as Lovelace resource: %s", str(ex))
+    
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "add_card_resource",
+        add_card_resource,
+    )
+    _LOGGER.info(
+        "Registered service dashboard_backup.add_card_resource to manually add the card as a resource"
+    )
+    
+    # If all methods failed, log a warning
+    if not success:
+        _LOGGER.warning(
+            "Could not register dashboard card with frontend. "
+            "You may need to manually add it to your resources: %s", 
+            card_url
+        )
+        # Add a persistent notification to inform the user
+        hass.components.persistent_notification.async_create(
+            f"The Dashboard Backup card could not be automatically registered. "
+            f"Please add it manually as a Lovelace resource:\n\n"
+            f"URL: {card_url}\n"
+            f"Resource type: JavaScript Module\n\n"
+            f"You can do this in Configuration > Lovelace Dashboards > Resources.",
+            title="Dashboard Backup Card Not Registered",
+            notification_id="dashboard_backup_card_not_registered",
+        )
 
     return True

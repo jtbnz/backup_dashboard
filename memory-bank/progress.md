@@ -2,7 +2,7 @@
 
 ## Current Status
 **Project Phase**: Implementation
-**Overall Progress**: 70%
+**Overall Progress**: 80%
 **Last Updated**: May 19, 2025
 
 ## What Works
@@ -13,6 +13,8 @@
 - Core backup and restore functionality implemented
 - UI integration with custom card implemented
 - Compatibility with different Home Assistant versions
+- Enhanced custom card implementation with multiple registration methods
+- Improved documentation with troubleshooting information
 
 ## What's Left to Build
 
@@ -50,10 +52,11 @@
 - [x] HACS preparation
 
 ## Known Issues
-- Initial compatibility issue with async_get_frontend_data function has been fixed
+- Initial compatibility issues have been fixed:
+  - async_get_frontend_data function fallback implemented
+  - Custom card registration improved with multiple methods
 - Potential challenges:
   - Some Home Assistant versions might have different dashboard storage mechanisms
-  - UI integration might vary across different frontend versions
   - Dashboard restoration might require Home Assistant restart in some cases
 
 ## Recent Milestones
@@ -65,6 +68,8 @@
 - UI integration completed
 - Documentation and HACS preparation completed
 - Compatibility issues fixed
+- Custom card implementation enhanced
+- Troubleshooting documentation improved
 
 ## Next Milestone Target
 - Testing and refinement
@@ -79,3 +84,6 @@
 - Component is ready for HACS distribution
 - Implemented fallbacks for functions that might not exist in all Home Assistant versions
 - Enhanced error handling to gracefully handle different Home Assistant environments
+- Custom card implementation updated to use LitElement for better compatibility
+- Multiple methods for card registration implemented for maximum compatibility
+- Added service for manually adding the card as a resource

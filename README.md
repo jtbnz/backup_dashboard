@@ -45,6 +45,7 @@ Home Assistant Dashboard Backup provides a simple way to save and restore your c
 
 ### Adding the Dashboard Card
 
+#### Automatic Method
 1. Go to your dashboard
 2. Click the "Edit Dashboard" button
 3. Click the "+" button to add a new card
@@ -52,6 +53,26 @@ Home Assistant Dashboard Backup provides a simple way to save and restore your c
 5. Click on it to add it to your dashboard
 6. Configure the card (optional)
 7. Click "Save"
+
+#### Manual Method (if the card doesn't appear in the card list)
+If the card doesn't appear in the list of available cards, you'll need to add it as a resource first:
+
+1. Go to Configuration > Lovelace Dashboards > Resources
+2. Click the "+" button to add a new resource
+3. Enter the URL: `/custom_components/dashboard_backup/dashboard_card.js`
+4. Select Resource type: "JavaScript Module"
+5. Click "Create"
+6. Refresh your browser
+
+After adding the resource, follow the steps in the Automatic Method to add the card to your dashboard.
+
+#### Using the Service
+You can also add the card as a resource using the service:
+
+1. Go to Developer Tools > Services
+2. Select service: `dashboard_backup.add_card_resource`
+3. Click "Call Service"
+4. Refresh your browser
 
 ### Card Configuration Options
 
@@ -100,6 +121,19 @@ Backup files are named using the format `dashboard_[dashboard_id]_[timestamp].ya
 ## Troubleshooting
 
 See the [Troubleshooting Guide](custom_components/dashboard_backup/README.md#troubleshooting) for common issues and solutions.
+
+# Note: If the card doesn't appear in the list of available cards when adding a card to your dashboard,
+# you'll need to add it as a resource first:
+#
+# 1. Go to Settings >  Dashboards > three dots top right - Resources
+# 2. Click the "+" button to add a new resource
+# 3. Enter the URL: `/custom_components/dashboard_backup/dashboard_card.js`
+# 4. Select Resource type: "JavaScript Module"
+# 5. Click "Create"
+# 6. Refresh your browser
+#
+# Alternatively, you can use the service `dashboard_backup.add_card_resource` to add the card as a resource.
+
 
 ## Contributing
 

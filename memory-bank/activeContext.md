@@ -22,6 +22,11 @@ We have implemented the core functionality of the Home Assistant Dashboard Backu
   - Enhanced dashboard configuration access methods
   - Improved error handling in restore functionality
   - Added alternative frontend registration methods
+- Enhanced custom card implementation:
+  - Updated to use LitElement for better compatibility
+  - Improved card registration with multiple fallback methods
+  - Added detailed documentation for manual resource addition
+  - Created service for adding card as a resource
 
 ## Next Steps
 

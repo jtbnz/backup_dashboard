@@ -10,6 +10,11 @@ create_backup:
       selector:
         text:
 
+add_card_resource:
+  name: Add Card Resource
+  description: Adds the dashboard backup card as a Lovelace resource.
+  fields: {}
+
 restore_backup:
   name: Restore Dashboard Backup
   description: Restores a dashboard from a backup file.

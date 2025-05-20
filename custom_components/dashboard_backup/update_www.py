@@ -18,8 +18,8 @@ def copy_card_files():
         www_dir = os.path.join(config_dir, "www", "dashboard_backup")
         os.makedirs(www_dir, exist_ok=True)
         
-        # Copy the card files
-        card_files = ["dashboard_card.js", "dashboard_card_direct.js"]
+        # Copy the card files and image
+        card_files = ["dashboard_card.js", "dashboard_card_direct.js", "dashboard_backup.png"]
         for file in card_files:
             src = os.path.join(current_dir, file)
             dst = os.path.join(www_dir, file)

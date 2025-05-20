@@ -105,7 +105,10 @@ class DashboardBackupCard extends LitElement {
     return html`
       <ha-card header="${this.config.title}">
         <div class="card-content">
-          <p>${this.config.description || 'Backup and restore your dashboard configuration.'}</p>
+          <div style="display: flex; align-items: center; margin-bottom: 16px;">
+            <img src="/local/dashboard_backup/dashboard_backup.png" alt="Dashboard Backup" style="width: 40px; height: 40px; margin-right: 16px;">
+            <p>${this.config.description || 'Backup and restore your dashboard configuration.'}</p>
+          </div>
         </div>
         <div class="card-actions">
           <mwc-button @click="${this._createBackup}">

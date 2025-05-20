@@ -106,7 +106,7 @@ class DashboardBackupCard extends LitElement {
       <ha-card header="${this.config.title}">
         <div class="card-content">
           <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <img src="/local/dashboard_backup/dashboard_backup.png" alt="Dashboard Backup" style="width: 40px; height: 40px; margin-right: 16px;">
+            <ha-icon icon="mdi:backup-restore" style="width: 40px; height: 40px; margin-right: 16px;"></ha-icon>
             <p>${this.config.description || 'Backup and restore your dashboard configuration.'}</p>
           </div>
         </div>

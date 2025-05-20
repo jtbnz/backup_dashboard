@@ -17,12 +17,11 @@ CARD_DIRECT_FILENAME = "dashboard_card_direct.js"
 
 async def async_setup_frontend(hass: HomeAssistant) -> bool:
     """Set up the Dashboard Backup frontend."""
-    # Get the URL for the dashboard cards and icon
+    # Get the URL for the dashboard cards
     # Files in the www directory are accessible via /local/
     root_path = f"/local/dashboard_backup/"
     card_url = f"{root_path}{CARD_FILENAME}"
     card_direct_url = f"{root_path}{CARD_DIRECT_FILENAME}"
-    icon_url = f"{root_path}dashboard_backup.png"
 
     # Try multiple methods to register the cards
     success = False
@@ -46,7 +45,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> bool:
                 hass,
                 "custom",
                 "dashboard_backup",
-                icon_url,  # Use custom icon instead of Material Design Icon
+                "mdi:backup-restore",  # Use Material Design Icon
                 "Dashboard Backup",
                 js_url=card_url,
             )

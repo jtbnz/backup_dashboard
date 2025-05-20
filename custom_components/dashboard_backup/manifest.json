@@ -8,5 +8,5 @@
   "iot_class": "local_push",
   "version": "0.1.0",
   "config_flow": true,
-  "icon": "/local/dashboard_backup/dashboard_backup.png"
+  "icon": "mdi:backup-restore"
 }

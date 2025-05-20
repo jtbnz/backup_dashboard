@@ -320,7 +320,18 @@ def register_services(hass: HomeAssistant) -> None:
 async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
     """Get the configuration for a dashboard."""
     try:
-        # Method 1: Try to get the dashboard configuration from the lovelace component
+        # Method 1: Try to get the dashboard configuration directly from the states
+        try:
+            # This is the most reliable method to get the current UI state
+            state = hass.states.get(f"lovelace.{dashboard_id}")
+            if state and state.attributes.get("config"):
+                config = state.attributes.get("config")
+                _LOGGER.debug("Got dashboard config from state: %s", config)
+                return config
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from state: %s", str(ex))
+        
+        # Method 2: Try to get it from the lovelace component
         try:
             if "lovelace" in hass.data and dashboard_id in hass.data["lovelace"]:
                 lovelace_config = hass.data["lovelace"][dashboard_id].config
@@ -330,7 +341,7 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
         except Exception as ex:
             _LOGGER.debug("Could not get config from lovelace component: %s", str(ex))
         
-        # Method 2: Try to get it from the .storage directory
+        # Method 3: Try to get it from the .storage directory
         try:
             storage_file = f".storage/lovelace.{dashboard_id}"
             if dashboard_id == "lovelace":
@@ -342,12 +353,12 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
                 with open(storage_path, "r") as f:
                     storage_data = json.load(f)
                     if "data" in storage_data:
-                        _LOGGER.debug("Got dashboard config from storage file")
+                        _LOGGER.debug("Got dashboard config from storage file: %s", storage_data.get("data"))
                         return storage_data.get("data", {})
         except Exception as ex:
             _LOGGER.debug("Could not get config from storage file: %s", str(ex))
         
-        # Method 3: Try to get it from the frontend data
+        # Method 4: Try to get it from the frontend data
         try:
             frontend_data = await async_get_frontend_data(hass)
             if frontend_data and "dashboards" in frontend_data:
@@ -358,7 +369,7 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
         except Exception as ex:
             _LOGGER.debug("Could not get frontend data: %s", str(ex))
             
-        # Method 4: Try to get it from the configuration.yaml file
+        # Method 5: Try to get it from the configuration.yaml file
         try:
             config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
             if os.path.exists(config_file):
@@ -370,7 +381,22 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
         except Exception as ex:
             _LOGGER.debug("Could not get configuration from YAML file: %s", str(ex))
         
-        # Method 5: Try to get it from the lovelace API
+        # Method 6: Try to get it from the browser storage
+        try:
+            # Try to get the current UI configuration from the browser storage
+            browser_storage_file = os.path.join(hass.config.config_dir, ".storage", "browser_mod.browserEntities")
+            if os.path.exists(browser_storage_file):
+                with open(browser_storage_file, "r") as f:
+                    browser_data = json.load(f)
+                    if "data" in browser_data:
+                        for entity_id, entity_data in browser_data["data"].items():
+                            if "lovelace" in entity_data and dashboard_id in entity_data["lovelace"]:
+                                _LOGGER.debug("Got dashboard config from browser storage")
+                                return entity_data["lovelace"][dashboard_id]
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from browser storage: %s", str(ex))
+        
+        # Method 7: Create a dummy config if we can't find one
         try:
             # Create a dummy config if we can't find one
             _LOGGER.debug("Creating dummy dashboard config")
@@ -400,58 +426,125 @@ async def restore_dashboard_config(
     hass: HomeAssistant, dashboard_id: str, config: dict
 ) -> None:
     """Restore a dashboard configuration."""
+    success = False
+    
     try:
-        # Try to update the dashboard configuration through the lovelace component
+        # Method 1: Try to use the lovelace service to save the config
         try:
-            if hasattr(hass.data, "lovelace") and dashboard_id in hass.data["lovelace"]:
-                await hass.data["lovelace"][dashboard_id].async_save_config(config)
-                return
+            _LOGGER.debug("Trying to save config using lovelace service")
+            await hass.services.async_call(
+                "lovelace",
+                "save_config",
+                {
+                    "config": config,
+                    "dashboard_id": dashboard_id
+                }
+            )
+            _LOGGER.info("Saved config using lovelace service")
+            success = True
         except Exception as ex:
-            _LOGGER.debug("Could not save config through lovelace component: %s", str(ex))
+            _LOGGER.debug("Could not save config using lovelace service: %s", str(ex))
         
-        # If that fails, try to update it in the .storage directory
-        storage_file = f".storage/lovelace.{dashboard_id}"
-        if dashboard_id == "lovelace":
-            storage_file = ".storage/lovelace"
-        
-        storage_path = os.path.join(hass.config.config_dir, storage_file)
-        
-        if os.path.exists(storage_path):
+        # Method 2: Try to update the dashboard configuration through the lovelace component
+        if not success:
             try:
-                with open(storage_path, "r") as f:
-                    storage_data = json.load(f)
+                _LOGGER.debug("Trying to save config through lovelace component")
+                if "lovelace" in hass.data and dashboard_id in hass.data["lovelace"]:
+                    await hass.data["lovelace"][dashboard_id].async_save_config(config)
+                    _LOGGER.info("Saved config through lovelace component")
+                    success = True
+            except Exception as ex:
+                _LOGGER.debug("Could not save config through lovelace component: %s", str(ex))
+        
+        # Method 3: Try to update it in the .storage directory
+        if not success:
+            try:
+                _LOGGER.debug("Trying to save config to storage file")
+                storage_file = f".storage/lovelace.{dashboard_id}"
+                if dashboard_id == "lovelace":
+                    storage_file = ".storage/lovelace"
                 
-                storage_data["data"] = config
+                storage_path = os.path.join(hass.config.config_dir, storage_file)
                 
-                with open(storage_path, "w") as f:
-                    json.dump(storage_data, f)
-                
-                # Try to reload the lovelace configuration
-                try:
-                    await hass.services.async_call("lovelace", "reload_resources")
-                except Exception as ex:
-                    _LOGGER.debug("Could not reload lovelace resources: %s", str(ex))
-                    # Try alternative reload method
+                if os.path.exists(storage_path):
+                    with open(storage_path, "r") as f:
+                        storage_data = json.load(f)
+                    
+                    # Make a backup of the original file
+                    backup_path = f"{storage_path}.bak"
+                    with open(backup_path, "w") as f:
+                        json.dump(storage_data, f)
+                    
+                    # Update the data
+                    storage_data["data"] = config
+                    
+                    # Write the updated data
+                    with open(storage_path, "w") as f:
+                        json.dump(storage_data, f)
+                    
+                    _LOGGER.info("Saved config to storage file")
+                    success = True
+                    
+                    # Try to reload the lovelace configuration
                     try:
-                        await hass.services.async_call("frontend", "reload_themes")
-                    except Exception:
-                        pass
-                return
+                        await hass.services.async_call("lovelace", "reload_resources")
+                    except Exception as ex:
+                        _LOGGER.debug("Could not reload lovelace resources: %s", str(ex))
+                        # Try alternative reload method
+                        try:
+                            await hass.services.async_call("frontend", "reload_themes")
+                        except Exception:
+                            pass
             except Exception as ex:
                 _LOGGER.debug("Could not update storage file: %s", str(ex))
         
-        # If that fails, try to write to the YAML configuration file
-        try:
-            config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
-            if dashboard_id == "lovelace" and os.path.exists(config_file):
-                with open(config_file, "w") as f:
-                    yaml.dump(config, f, default_flow_style=False)
-                return
-        except Exception as ex:
-            _LOGGER.debug("Could not write to YAML configuration file: %s", str(ex))
+        # Method 4: Try to write to the YAML configuration file
+        if not success:
+            try:
+                _LOGGER.debug("Trying to save config to YAML file")
+                config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
+                if dashboard_id == "lovelace":
+                    # Make a backup of the original file if it exists
+                    if os.path.exists(config_file):
+                        backup_path = f"{config_file}.bak"
+                        with open(config_file, "r") as src, open(backup_path, "w") as dst:
+                            dst.write(src.read())
+                    
+                    # Write the updated config
+                    with open(config_file, "w") as f:
+                        yaml.dump(config, f, default_flow_style=False)
+                    
+                    _LOGGER.info("Saved config to YAML file")
+                    success = True
+            except Exception as ex:
+                _LOGGER.debug("Could not write to YAML configuration file: %s", str(ex))
         
-        # If all else fails, raise an error
-        raise HomeAssistantError(f"Could not restore dashboard {dashboard_id}")
+        # Method 5: Try to use the frontend API
+        if not success:
+            try:
+                _LOGGER.debug("Trying to save config using frontend API")
+                # This is a more direct approach that might work in some cases
+                await hass.components.frontend.async_set_user_data(
+                    "lovelace", 
+                    {"config": config},
+                    dashboard_id
+                )
+                _LOGGER.info("Saved config using frontend API")
+                success = True
+            except Exception as ex:
+                _LOGGER.debug("Could not save config using frontend API: %s", str(ex))
+        
+        # If all methods failed, raise an error
+        if not success:
+            _LOGGER.error("All methods to restore dashboard %s failed", dashboard_id)
+            raise HomeAssistantError(f"Could not restore dashboard {dashboard_id}")
+        
+        # Try to reload the UI
+        try:
+            _LOGGER.debug("Reloading UI")
+            await hass.services.async_call("lovelace", "reload")
+        except Exception as ex:
+            _LOGGER.debug("Could not reload UI: %s", str(ex))
     
     except Exception as ex:
         _LOGGER.error("Error restoring dashboard configuration: %s", str(ex))

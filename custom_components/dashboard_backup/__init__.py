@@ -127,11 +127,11 @@ def register_services(hass: HomeAssistant) -> None:
         dashboard_id = call.data.get(ATTR_DASHBOARD_ID, "lovelace")
         
         try:
-            # Get the dashboard configuration
-            dashboard_config = await get_dashboard_config(hass, dashboard_id)
+            # Determine the storage file path
+            storage_file = get_storage_file_path(hass, dashboard_id)
             
-            if not dashboard_config:
-                raise HomeAssistantError(ERROR_DASHBOARD_NOT_FOUND)
+            if not os.path.exists(storage_file):
+                raise HomeAssistantError(f"Storage file not found: {storage_file}")
             
             # Create a timestamp for the backup filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -140,22 +140,38 @@ def register_services(hass: HomeAssistant) -> None:
             backup_path = hass.data[DOMAIN].get(CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH)
             full_backup_path = os.path.join(hass.config.config_dir, backup_path)
             
-            # Create the backup filename
-            filename = f"dashboard_{dashboard_id}_{timestamp}.yaml"
-            backup_file = os.path.join(full_backup_path, filename)
+            # Create the backup filename (JSON format)
+            json_filename = f"dashboard_{dashboard_id}_{timestamp}.json"
+            json_backup_file = os.path.join(full_backup_path, json_filename)
             
-            # Save the dashboard configuration to the backup file
-            with open(backup_file, "w") as f:
+            # Copy the storage file directly
+            with open(storage_file, "r") as src, open(json_backup_file, "w") as dst:
+                dst.write(src.read())
+            
+            # Also create a YAML version for human readability
+            yaml_filename = f"dashboard_{dashboard_id}_{timestamp}.yaml"
+            yaml_backup_file = os.path.join(full_backup_path, yaml_filename)
+            
+            # Read the JSON file
+            with open(storage_file, "r") as f:
+                storage_data = json.load(f)
+            
+            # Extract the dashboard configuration
+            dashboard_config = storage_data.get("data", {})
+            
+            # Save the dashboard configuration to the YAML file
+            with open(yaml_backup_file, "w") as f:
                 yaml.dump(dashboard_config, f, default_flow_style=False)
             
-            _LOGGER.info("Created backup of dashboard %s: %s", dashboard_id, backup_file)
+            _LOGGER.info("Created backup of dashboard %s: %s and %s", 
+                        dashboard_id, json_backup_file, yaml_backup_file)
             
             # Fire an event to notify of successful backup
             hass.bus.async_fire(
                 EVENT_BACKUP_CREATED,
                 {
                     ATTR_DASHBOARD_ID: dashboard_id,
-                    ATTR_BACKUP_FILE: filename,
+                    ATTR_BACKUP_FILE: json_filename,
                     ATTR_TIMESTAMP: timestamp,
                 },
             )
@@ -221,17 +237,29 @@ def register_services(hass: HomeAssistant) -> None:
             
             # If no backup file is specified, use the most recent one
             if not backup_file:
-                backup_files = [
+                # Look for JSON backups first
+                json_backup_files = [
                     f for f in os.listdir(full_backup_path)
-                    if f.startswith(f"dashboard_{dashboard_id}_") and f.endswith(".yaml")
+                    if f.startswith(f"dashboard_{dashboard_id}_") and f.endswith(".json")
                 ]
                 
-                if not backup_files:
-                    raise HomeAssistantError(ERROR_BACKUP_NOT_FOUND)
-                
-                # Sort by timestamp (newest first)
-                backup_files.sort(reverse=True)
-                backup_file = backup_files[0]
+                if json_backup_files:
+                    # Sort by timestamp (newest first)
+                    json_backup_files.sort(reverse=True)
+                    backup_file = json_backup_files[0]
+                else:
+                    # Fall back to YAML backups
+                    yaml_backup_files = [
+                        f for f in os.listdir(full_backup_path)
+                        if f.startswith(f"dashboard_{dashboard_id}_") and f.endswith(".yaml")
+                    ]
+                    
+                    if not yaml_backup_files:
+                        raise HomeAssistantError(ERROR_BACKUP_NOT_FOUND)
+                    
+                    # Sort by timestamp (newest first)
+                    yaml_backup_files.sort(reverse=True)
+                    backup_file = yaml_backup_files[0]
             
             # Get the full path to the backup file
             backup_file_path = os.path.join(full_backup_path, backup_file)
@@ -239,17 +267,46 @@ def register_services(hass: HomeAssistant) -> None:
             if not os.path.exists(backup_file_path):
                 raise HomeAssistantError(ERROR_BACKUP_NOT_FOUND)
             
-            # Load the dashboard configuration from the backup file
-            with open(backup_file_path, "r") as f:
+            # Determine the storage file path
+            storage_file = get_storage_file_path(hass, dashboard_id)
+            
+            # If it's a JSON backup and ends with .json, directly copy it to the storage file
+            if backup_file.endswith(".json"):
+                _LOGGER.info("Restoring JSON backup directly to storage file")
+                
+                # Make a backup of the original file if it exists
+                if os.path.exists(storage_file):
+                    backup_storage = f"{storage_file}.bak"
+                    with open(storage_file, "r") as src, open(backup_storage, "w") as dst:
+                        dst.write(src.read())
+                
+                # Copy the backup file to the storage file
+                with open(backup_file_path, "r") as src, open(storage_file, "w") as dst:
+                    dst.write(src.read())
+                
+                # Try to reload the UI
                 try:
-                    dashboard_config = yaml.safe_load(f)
-                except yaml.YAMLError:
-                    raise HomeAssistantError(ERROR_INVALID_YAML)
-            
-            # Restore the dashboard configuration
-            await restore_dashboard_config(hass, dashboard_id, dashboard_config)
-            
-            _LOGGER.info("Restored dashboard %s from backup: %s", dashboard_id, backup_file)
+                    _LOGGER.debug("Reloading UI")
+                    await hass.services.async_call("lovelace", "reload")
+                except Exception as ex:
+                    _LOGGER.debug("Could not reload UI: %s", str(ex))
+                
+                _LOGGER.info("Restored dashboard %s from backup: %s", dashboard_id, backup_file)
+            else:
+                # For YAML backups, use the normal restore process
+                _LOGGER.info("Restoring YAML backup through configuration API")
+                
+                # Load the dashboard configuration from the backup file
+                with open(backup_file_path, "r") as f:
+                    try:
+                        dashboard_config = yaml.safe_load(f)
+                    except yaml.YAMLError:
+                        raise HomeAssistantError(ERROR_INVALID_YAML)
+                
+                # Restore the dashboard configuration
+                await restore_dashboard_config(hass, dashboard_id, dashboard_config)
+                
+                _LOGGER.info("Restored dashboard %s from backup: %s", dashboard_id, backup_file)
             
             # Fire an event to notify of successful restore
             hass.bus.async_fire(
@@ -315,6 +372,43 @@ def register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_RESTORE_BACKUP, restore_backup, schema=RESTORE_SCHEMA
     )
+
+
+def get_storage_file_path(hass: HomeAssistant, dashboard_id: str) -> str:
+    """Get the path to the storage file for a dashboard."""
+    # Handle different dashboard ID formats
+    if dashboard_id == "lovelace":
+        # Main dashboard
+        storage_file = ".storage/lovelace"
+    elif dashboard_id.startswith("dashboard_"):
+        # Dashboard with prefix already
+        storage_file = f".storage/lovelace.{dashboard_id}"
+    else:
+        # Dashboard without prefix
+        storage_file = f".storage/lovelace.dashboard_{dashboard_id}"
+    
+    # Get the full path
+    storage_path = os.path.join(hass.config.config_dir, storage_file)
+    
+    # Check if the file exists
+    if os.path.exists(storage_path):
+        return storage_path
+    
+    # If not, try alternative formats
+    alternatives = [
+        f".storage/lovelace.{dashboard_id}",  # Without dashboard_ prefix
+        f".storage/lovelace.dashboard_{dashboard_id}",  # With dashboard_ prefix
+        f".storage/lovelace_{dashboard_id}",  # With underscore
+        f".storage/lovelace-{dashboard_id}",  # With hyphen
+    ]
+    
+    for alt in alternatives:
+        alt_path = os.path.join(hass.config.config_dir, alt)
+        if os.path.exists(alt_path):
+            return alt_path
+    
+    # If no alternatives found, return the original path
+    return storage_path
 
 
 async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:

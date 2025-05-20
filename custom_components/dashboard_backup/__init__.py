@@ -320,28 +320,86 @@ def register_services(hass: HomeAssistant) -> None:
 async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
     """Get the configuration for a dashboard."""
     try:
-        # Method 1: Try to get the dashboard configuration directly from the states
+        # Method 1: Try to get the dashboard configuration directly from the lovelace API
         try:
-            # This is the most reliable method to get the current UI state
+            _LOGGER.debug("Trying to get config directly from lovelace API")
+            # This is the most direct method to get the raw configuration
+            from homeassistant.components.lovelace import dashboard
+            
+            # Get the dashboard instance
+            if dashboard_id == "lovelace":
+                # For the main dashboard
+                dashboard_instance = await dashboard.get_default_config(hass)
+            else:
+                # For other dashboards
+                dashboard_instance = await dashboard.get_dashboard_for_mode(hass, dashboard_id)
+            
+            if dashboard_instance and hasattr(dashboard_instance, "config"):
+                config = dashboard_instance.config
+                if config:
+                    _LOGGER.info("Got dashboard config directly from lovelace API: %s", config)
+                    return config
+        except Exception as ex:
+            _LOGGER.debug("Could not get config directly from lovelace API: %s", str(ex))
+        
+        # Method 2: Try to get the dashboard configuration directly from the states
+        try:
+            # This is another reliable method to get the current UI state
             state = hass.states.get(f"lovelace.{dashboard_id}")
             if state and state.attributes.get("config"):
                 config = state.attributes.get("config")
-                _LOGGER.debug("Got dashboard config from state: %s", config)
+                _LOGGER.info("Got dashboard config from state: %s", config)
                 return config
         except Exception as ex:
             _LOGGER.debug("Could not get config from state: %s", str(ex))
         
-        # Method 2: Try to get it from the lovelace component
+        # Method 3: Try to get it from the lovelace component
         try:
             if "lovelace" in hass.data and dashboard_id in hass.data["lovelace"]:
                 lovelace_config = hass.data["lovelace"][dashboard_id].config
                 if lovelace_config:
-                    _LOGGER.debug("Got dashboard config from lovelace component")
+                    _LOGGER.info("Got dashboard config from lovelace component: %s", lovelace_config)
                     return lovelace_config
         except Exception as ex:
             _LOGGER.debug("Could not get config from lovelace component: %s", str(ex))
         
-        # Method 3: Try to get it from the .storage directory
+        # Method 4: Try to get it directly from the lovelace service
+        try:
+            # Try to call the lovelace.get_config service
+            from homeassistant.components.websocket_api import async_register_command
+            
+            # Create a temporary event to get the result
+            event_name = f"dashboard_backup_get_config_{dashboard_id}"
+            result = None
+            
+            # Define a callback to handle the result
+            @callback
+            def handle_result(event):
+                nonlocal result
+                result = event.data.get("config")
+            
+            # Register a temporary event listener
+            remove_listener = hass.bus.async_listen(event_name, handle_result)
+            
+            # Call the service
+            await hass.services.async_call(
+                "lovelace",
+                "get_config",
+                {"dashboard_id": dashboard_id},
+                blocking=True
+            )
+            
+            # Remove the listener
+            remove_listener()
+            
+            # Check if we got a result
+            if result:
+                _LOGGER.info("Got dashboard config from lovelace service: %s", result)
+                return result
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from lovelace service: %s", str(ex))
+        
+        # Method 5: Try to get it from the .storage directory
         try:
             storage_file = f".storage/lovelace.{dashboard_id}"
             if dashboard_id == "lovelace":
@@ -353,35 +411,35 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
                 with open(storage_path, "r") as f:
                     storage_data = json.load(f)
                     if "data" in storage_data:
-                        _LOGGER.debug("Got dashboard config from storage file: %s", storage_data.get("data"))
+                        _LOGGER.info("Got dashboard config from storage file: %s", storage_data.get("data"))
                         return storage_data.get("data", {})
         except Exception as ex:
             _LOGGER.debug("Could not get config from storage file: %s", str(ex))
         
-        # Method 4: Try to get it from the frontend data
+        # Method 6: Try to get it from the frontend data
         try:
             frontend_data = await async_get_frontend_data(hass)
             if frontend_data and "dashboards" in frontend_data:
                 for dash_id, dash_data in frontend_data["dashboards"].items():
                     if dash_id == dashboard_id:
-                        _LOGGER.debug("Got dashboard config from frontend data")
+                        _LOGGER.info("Got dashboard config from frontend data: %s", dash_data)
                         return dash_data
         except Exception as ex:
             _LOGGER.debug("Could not get frontend data: %s", str(ex))
             
-        # Method 5: Try to get it from the configuration.yaml file
+        # Method 7: Try to get it from the configuration.yaml file
         try:
             config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
             if os.path.exists(config_file):
                 with open(config_file, "r") as f:
                     config_data = yaml.safe_load(f)
                     if config_data:
-                        _LOGGER.debug("Got dashboard config from YAML file")
+                        _LOGGER.info("Got dashboard config from YAML file: %s", config_data)
                         return config_data
         except Exception as ex:
             _LOGGER.debug("Could not get configuration from YAML file: %s", str(ex))
         
-        # Method 6: Try to get it from the browser storage
+        # Method 8: Try to get it from the browser storage
         try:
             # Try to get the current UI configuration from the browser storage
             browser_storage_file = os.path.join(hass.config.config_dir, ".storage", "browser_mod.browserEntities")
@@ -391,12 +449,28 @@ async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
                     if "data" in browser_data:
                         for entity_id, entity_data in browser_data["data"].items():
                             if "lovelace" in entity_data and dashboard_id in entity_data["lovelace"]:
-                                _LOGGER.debug("Got dashboard config from browser storage")
+                                _LOGGER.info("Got dashboard config from browser storage: %s", entity_data["lovelace"][dashboard_id])
                                 return entity_data["lovelace"][dashboard_id]
         except Exception as ex:
             _LOGGER.debug("Could not get config from browser storage: %s", str(ex))
         
-        # Method 7: Create a dummy config if we can't find one
+        # Method 9: Try to get it from the raw editor
+        try:
+            # Try to get the raw configuration from the editor
+            raw_config_file = os.path.join(hass.config.config_dir, f"ui-lovelace.{dashboard_id}.yaml")
+            if dashboard_id == "lovelace":
+                raw_config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
+            
+            if os.path.exists(raw_config_file):
+                with open(raw_config_file, "r") as f:
+                    raw_config = yaml.safe_load(f)
+                    if raw_config:
+                        _LOGGER.info("Got dashboard config from raw editor file: %s", raw_config)
+                        return raw_config
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from raw editor file: %s", str(ex))
+        
+        # Method 10: Create a dummy config if we can't find one
         try:
             # Create a dummy config if we can't find one
             _LOGGER.debug("Creating dummy dashboard config")

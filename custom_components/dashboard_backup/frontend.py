@@ -20,7 +20,8 @@ async def async_setup_frontend(hass: HomeAssistant) -> bool:
     # Get the URL for the dashboard cards
     # Files in the www directory are accessible via /local/
     root_path = f"/local/dashboard_backup/"
-    card_url = f"{root_path}{CARD_FILENAME}"
+    # Use only the direct import version which is more reliable
+    card_url = f"{root_path}{CARD_DIRECT_FILENAME}"
     card_direct_url = f"{root_path}{CARD_DIRECT_FILENAME}"
 
     # Try multiple methods to register the cards

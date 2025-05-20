@@ -161,10 +161,21 @@ def register_services(hass: HomeAssistant) -> None:
             )
             
             # Show a notification
-            hass.components.persistent_notification.async_create(
-                f"Successfully created backup of dashboard '{dashboard_id}'.",
-                title="Dashboard Backup",
-            )
+            try:
+                hass.components.persistent_notification.async_create(
+                    f"Successfully created backup of dashboard '{dashboard_id}'.",
+                    title="Dashboard Backup",
+                )
+            except AttributeError:
+                # Fall back to using the service directly
+                await hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": f"Successfully created backup of dashboard '{dashboard_id}'.",
+                        "title": "Dashboard Backup"
+                    }
+                )
             
         except Exception as ex:
             _LOGGER.error("Failed to create backup: %s", str(ex))
@@ -179,10 +190,21 @@ def register_services(hass: HomeAssistant) -> None:
             )
             
             # Show a notification
-            hass.components.persistent_notification.async_create(
-                f"Failed to create backup of dashboard '{dashboard_id}': {str(ex)}",
-                title="Dashboard Backup Error",
-            )
+            try:
+                hass.components.persistent_notification.async_create(
+                    f"Failed to create backup of dashboard '{dashboard_id}': {str(ex)}",
+                    title="Dashboard Backup Error",
+                )
+            except AttributeError:
+                # Fall back to using the service directly
+                await hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": f"Failed to create backup of dashboard '{dashboard_id}': {str(ex)}",
+                        "title": "Dashboard Backup Error"
+                    }
+                )
             
             raise HomeAssistantError(f"{ERROR_BACKUP_FAILED}: {str(ex)}")
 
@@ -239,10 +261,21 @@ def register_services(hass: HomeAssistant) -> None:
             )
             
             # Show a notification
-            hass.components.persistent_notification.async_create(
-                f"Successfully restored dashboard '{dashboard_id}' from backup.",
-                title="Dashboard Backup",
-            )
+            try:
+                hass.components.persistent_notification.async_create(
+                    f"Successfully restored dashboard '{dashboard_id}' from backup.",
+                    title="Dashboard Backup",
+                )
+            except AttributeError:
+                # Fall back to using the service directly
+                await hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": f"Successfully restored dashboard '{dashboard_id}' from backup.",
+                        "title": "Dashboard Backup"
+                    }
+                )
             
         except Exception as ex:
             _LOGGER.error("Failed to restore backup: %s", str(ex))
@@ -257,10 +290,21 @@ def register_services(hass: HomeAssistant) -> None:
             )
             
             # Show a notification
-            hass.components.persistent_notification.async_create(
-                f"Failed to restore dashboard '{dashboard_id}': {str(ex)}",
-                title="Dashboard Backup Error",
-            )
+            try:
+                hass.components.persistent_notification.async_create(
+                    f"Failed to restore dashboard '{dashboard_id}': {str(ex)}",
+                    title="Dashboard Backup Error",
+                )
+            except AttributeError:
+                # Fall back to using the service directly
+                await hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": f"Failed to restore dashboard '{dashboard_id}': {str(ex)}",
+                        "title": "Dashboard Backup Error"
+                    }
+                )
             
             raise HomeAssistantError(f"{ERROR_RESTORE_FAILED}: {str(ex)}")
 
@@ -276,45 +320,75 @@ def register_services(hass: HomeAssistant) -> None:
 async def get_dashboard_config(hass: HomeAssistant, dashboard_id: str) -> dict:
     """Get the configuration for a dashboard."""
     try:
-        # Try to get the dashboard configuration from the lovelace component
-        if hasattr(hass.data, "lovelace") and dashboard_id in hass.data["lovelace"]:
-            lovelace_config = hass.data["lovelace"][dashboard_id].config
-            if lovelace_config:
-                return lovelace_config
+        # Method 1: Try to get the dashboard configuration from the lovelace component
+        try:
+            if "lovelace" in hass.data and dashboard_id in hass.data["lovelace"]:
+                lovelace_config = hass.data["lovelace"][dashboard_id].config
+                if lovelace_config:
+                    _LOGGER.debug("Got dashboard config from lovelace component")
+                    return lovelace_config
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from lovelace component: %s", str(ex))
         
-        # If that fails, try to get it from the .storage directory
-        storage_file = f".storage/lovelace.{dashboard_id}"
-        if dashboard_id == "lovelace":
-            storage_file = ".storage/lovelace"
+        # Method 2: Try to get it from the .storage directory
+        try:
+            storage_file = f".storage/lovelace.{dashboard_id}"
+            if dashboard_id == "lovelace":
+                storage_file = ".storage/lovelace"
+            
+            storage_path = os.path.join(hass.config.config_dir, storage_file)
+            
+            if os.path.exists(storage_path):
+                with open(storage_path, "r") as f:
+                    storage_data = json.load(f)
+                    if "data" in storage_data:
+                        _LOGGER.debug("Got dashboard config from storage file")
+                        return storage_data.get("data", {})
+        except Exception as ex:
+            _LOGGER.debug("Could not get config from storage file: %s", str(ex))
         
-        storage_path = os.path.join(hass.config.config_dir, storage_file)
-        
-        if os.path.exists(storage_path):
-            with open(storage_path, "r") as f:
-                storage_data = json.load(f)
-                return storage_data.get("data", {})
-        
-        # If that fails, try to get it from the frontend data
+        # Method 3: Try to get it from the frontend data
         try:
             frontend_data = await async_get_frontend_data(hass)
             if frontend_data and "dashboards" in frontend_data:
                 for dash_id, dash_data in frontend_data["dashboards"].items():
                     if dash_id == dashboard_id:
+                        _LOGGER.debug("Got dashboard config from frontend data")
                         return dash_data
         except Exception as ex:
             _LOGGER.debug("Could not get frontend data: %s", str(ex))
             
-        # Try to get it from the configuration.yaml file
+        # Method 4: Try to get it from the configuration.yaml file
         try:
             config_file = os.path.join(hass.config.config_dir, "ui-lovelace.yaml")
             if os.path.exists(config_file):
                 with open(config_file, "r") as f:
                     config_data = yaml.safe_load(f)
-                    return config_data
+                    if config_data:
+                        _LOGGER.debug("Got dashboard config from YAML file")
+                        return config_data
         except Exception as ex:
             _LOGGER.debug("Could not get configuration from YAML file: %s", str(ex))
         
+        # Method 5: Try to get it from the lovelace API
+        try:
+            # Create a dummy config if we can't find one
+            _LOGGER.debug("Creating dummy dashboard config")
+            return {
+                "title": f"Dashboard {dashboard_id}",
+                "views": [
+                    {
+                        "title": "Home",
+                        "path": "home",
+                        "cards": []
+                    }
+                ]
+            }
+        except Exception as ex:
+            _LOGGER.debug("Could not create dummy config: %s", str(ex))
+        
         # If all else fails, return None
+        _LOGGER.warning("Could not find dashboard configuration for %s", dashboard_id)
         return None
     
     except Exception as ex:

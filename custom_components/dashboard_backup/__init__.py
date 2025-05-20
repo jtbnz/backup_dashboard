@@ -130,8 +130,45 @@ def register_services(hass: HomeAssistant) -> None:
             # Determine the storage file path
             storage_file = get_storage_file_path(hass, dashboard_id)
             
+            # If the storage file doesn't exist, try to find it
             if not os.path.exists(storage_file):
-                raise HomeAssistantError(f"Storage file not found: {storage_file}")
+                # Try to find the storage file with different formats
+                _LOGGER.warning("Storage file not found at %s, trying to find it with different formats", storage_file)
+                
+                # List all files in the .storage directory
+                storage_dir = os.path.join(hass.config.config_dir, ".storage")
+                if os.path.exists(storage_dir):
+                    storage_files = os.listdir(storage_dir)
+                    lovelace_files = [f for f in storage_files if f.startswith("lovelace")]
+                    
+                    _LOGGER.info("Found lovelace files: %s", lovelace_files)
+                    
+                    # Try to find a file that matches the dashboard ID
+                    for file in lovelace_files:
+                        if dashboard_id == "lovelace" and file == "lovelace":
+                            storage_file = os.path.join(storage_dir, file)
+                            _LOGGER.info("Found main dashboard storage file: %s", storage_file)
+                            break
+                        elif dashboard_id in file:
+                            storage_file = os.path.join(storage_dir, file)
+                            _LOGGER.info("Found matching dashboard storage file: %s", storage_file)
+                            break
+                    
+                    # If we still haven't found a file and this is the main dashboard, try lovelace
+                    if not os.path.exists(storage_file) and dashboard_id == "lovelace":
+                        for file in lovelace_files:
+                            if file == "lovelace":
+                                storage_file = os.path.join(storage_dir, file)
+                                _LOGGER.info("Using main lovelace file: %s", storage_file)
+                                break
+                
+                # If we still haven't found a file, raise an error
+                if not os.path.exists(storage_file):
+                    available_files = "\n".join(lovelace_files) if 'lovelace_files' in locals() else "None"
+                    raise HomeAssistantError(
+                        f"Storage file not found for dashboard '{dashboard_id}'. "
+                        f"Available lovelace files:\n{available_files}"
+                    )
             
             # Create a timestamp for the backup filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

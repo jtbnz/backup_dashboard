@@ -44,6 +44,7 @@ from .const import (
     ERROR_INVALID_YAML,
 )
 from .frontend import async_setup_frontend
+from .update_www import copy_card_files
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,6 +97,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register services
     register_services(hass)
 
+    # Copy card files to www directory
+    copy_card_files()
+    
     # Set up frontend
     await async_setup_frontend(hass)
 

@@ -38,8 +38,8 @@ dashboard_id: 'lovelace'
 # 1. Go to Configuration > Lovelace Dashboards > Resources
 # 2. Click the "+" button to add a new resource
 # 3. Enter one of these URLs:
-#    - Standard version: `/custom_components/dashboard_backup/dashboard_card.js`
-#    - Direct import version (try this if standard doesn't work): `/custom_components/dashboard_backup/dashboard_card_direct.js`
+#    - Standard version: `/local/dashboard_backup/dashboard_card.js`
+#    - Direct import version (try this if standard doesn't work): `/local/dashboard_backup/dashboard_card_direct.js`
 # 4. Select Resource type: "JavaScript Module"
 # 5. Click "Create"
 # 6. Refresh your browser

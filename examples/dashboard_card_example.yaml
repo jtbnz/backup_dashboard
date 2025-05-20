@@ -26,13 +26,23 @@ dashboard_id: 'lovelace'
 # dashboard_id: 'kitchen'
 
 # Note: If the card doesn't appear in the list of available cards when adding a card to your dashboard,
-# you'll need to add it as a resource first:
+# you'll need to add it as a resource first. You have two options:
 #
+# Option 1: Use the service to add both card versions automatically
+# 1. Go to Developer Tools > Services
+# 2. Select the service `dashboard_backup.add_card_resource`
+# 3. Click "Call Service"
+# 4. Refresh your browser
+#
+# Option 2: Manually add one of the card versions
 # 1. Go to Configuration > Lovelace Dashboards > Resources
 # 2. Click the "+" button to add a new resource
-# 3. Enter the URL: `/custom_components/dashboard_backup/dashboard_card.js`
+# 3. Enter one of these URLs:
+#    - Standard version: `/custom_components/dashboard_backup/dashboard_card.js`
+#    - Direct import version (try this if standard doesn't work): `/custom_components/dashboard_backup/dashboard_card_direct.js`
 # 4. Select Resource type: "JavaScript Module"
 # 5. Click "Create"
 # 6. Refresh your browser
 #
-# Alternatively, you can use the service `dashboard_backup.add_card_resource` to add the card as a resource.
+# If you're still seeing "Custom element not found: dashboard-backup-card" after adding the resource,
+# try clearing your browser cache or using a private/incognito window.
